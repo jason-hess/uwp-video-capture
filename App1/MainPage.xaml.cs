@@ -22,7 +22,7 @@ namespace App1
 
         private async void Button_Click(object sender, RoutedEventArgs e)
         {
-            await SayWithTheVoice("Hello, I am MJ.  Your personal AI.  You're looking fine today.  How can I help?", "James");
+            await SayWithTheVoice("Hello, I am MJ, your personal AI.  You are looking fine today.  How can I help?", "James");
         }
 
         private static async Task SayWithTheVoice(string text, string speaker)
