@@ -6,11 +6,14 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" GotFocus="MainPage_OnGotFocus">
 
     <Grid>
         <Button Content="click me!!!" HorizontalAlignment="Left" Margin="750,415,0,0" VerticalAlignment="Top" Click="Button_Click"/>
         <Button Content="no.  click me!!!" HorizontalAlignment="Left" Margin="770,500,0,0" VerticalAlignment="Top" Click="Button_Click_1"/>
-
+        <TextBox x:Name="txtName" HorizontalAlignment="Left" Margin="540,447,0,0" Text="Jason" VerticalAlignment="Top" TextChanged="TextBox_TextChanged"/>
+        <Button Content="say what you like" HorizontalAlignment="Left" Margin="934,431,0,0" VerticalAlignment="Top" Click="Button_Click_2"/>
+        <Button Content="Button" HorizontalAlignment="Left" Margin="637,421,0,0" VerticalAlignment="Top" Click="Button_Click_3"/>
+        <MediaElement x:Name="medElement"/>
     </Grid>
 </Page>
