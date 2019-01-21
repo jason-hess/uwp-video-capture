@@ -21,9 +21,38 @@ namespace App1
 
         private async void Button_Click(object sender, RoutedEventArgs e)
         {
+            var speaker = "James";
             await SayWithTheVoice(
                 $"Hello {txtName.Text}! I am MJ, your personal AI.  You're looking quite dashing today!  How can I help?",
-                "James");
+                speaker);
+
+
+
+            // Create an instance of SpeechRecognizer.
+            var speechRecognizer = new Windows.Media.SpeechRecognition.SpeechRecognizer();
+
+            // Compile the dictation grammar by default.
+            await speechRecognizer.CompileConstraintsAsync();
+
+            // Start recognition.
+            Windows.Media.SpeechRecognition.SpeechRecognitionResult speechRecognitionResult = await speechRecognizer.RecognizeAsync();
+
+            // Do something with the recognition result.
+            //var messageDialog = new Windows.UI.Popups.MessageDialog(speechRecognitionResult.Text, "Text spoken");
+            //await messageDialog.ShowAsync();
+
+            if (speechRecognitionResult.Text.Contains("coffee"))
+            {
+                await SayWithTheVoice("I'm sorry, I don't make coffee", speaker);
+            }
+            else if (speechRecognitionResult.Text.Contains("chocolate"))
+            {
+                await SayWithTheVoice("Coming right up!", speaker);
+            }
+            else
+            {
+                await SayWithTheVoice("I'm confused", speaker);
+            }
         }
 
         private async Task SayWithTheVoice(string text, string speaker)
@@ -40,7 +69,10 @@ namespace App1
                 mediaElement.SetSource(stream, stream.ContentType);
 
                 var tsc = new TaskCompletionSource<bool>();
-                mediaElement.MediaEnded += (o, e) => { tsc.TrySetResult(true); };
+                mediaElement.MediaEnded += (o, e) =>
+                {
+                    tsc.TrySetResult(true);
+                };
                 mediaElement.Play();
                 await tsc.Task;
             }
