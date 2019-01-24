@@ -23,36 +23,60 @@ namespace App1
         {
             var speaker = "James";
             await SayWithTheVoice(
-                $"Hello {txtName.Text}! I am MJ, your personal AI.  You're looking quite dashing today!  How can I help?",
+                $"Hello {txtName.Text}!",
                 speaker);
 
 
 
-            // Create an instance of SpeechRecognizer.
+            var whatWasSaid = await Listen();
+            if (whatWasSaid.Contains("coffee"))
+            {
+                await SayWithTheVoice("I'm sorry, I don't make coffee", speaker);
+            }
+            else if (whatWasSaid.Contains("chocolate"))
+            {
+                await SayWithTheVoice("Coming right up!", speaker);
+            }
+            else if (whatWasSaid.Contains("joke"))
+            {
+                await SayWithTheVoice("Knock Kock", speaker);
+
+                await Listen();
+
+                await SayWithTheVoice("Tank", speaker);
+
+                var response = await Listen();
+
+                if (response.Contains("tank"))
+                {
+                    await SayWithTheVoice("You're welcome", speaker);
+                }
+
+            }
+            else
+            {
+                await SayWithTheVoice("I'm confused", speaker);
+            }
+        }
+
+        private static async Task<string> Listen()
+        {
+// Create an instance of SpeechRecognizer.
             var speechRecognizer = new Windows.Media.SpeechRecognition.SpeechRecognizer();
 
             // Compile the dictation grammar by default.
             await speechRecognizer.CompileConstraintsAsync();
 
             // Start recognition.
-            Windows.Media.SpeechRecognition.SpeechRecognitionResult speechRecognitionResult = await speechRecognizer.RecognizeAsync();
+            Windows.Media.SpeechRecognition.SpeechRecognitionResult speechRecognitionResult =
+                await speechRecognizer.RecognizeWithUIAsync();
 
             // Do something with the recognition result.
             //var messageDialog = new Windows.UI.Popups.MessageDialog(speechRecognitionResult.Text, "Text spoken");
             //await messageDialog.ShowAsync();
 
-            if (speechRecognitionResult.Text.Contains("coffee"))
-            {
-                await SayWithTheVoice("I'm sorry, I don't make coffee", speaker);
-            }
-            else if (speechRecognitionResult.Text.Contains("chocolate"))
-            {
-                await SayWithTheVoice("Coming right up!", speaker);
-            }
-            else
-            {
-                await SayWithTheVoice("I'm confused", speaker);
-            }
+            var whatWasSaid = speechRecognitionResult.Text;
+            return whatWasSaid;
         }
 
         private async Task SayWithTheVoice(string text, string speaker)
