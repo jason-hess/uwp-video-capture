@@ -1,5 +1,8 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Microsoft.Azure.CognitiveServices.Vision.Face;
+using Microsoft.Azure.CognitiveServices.Vision.Face.Models;
+using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -14,11 +17,44 @@ using Windows.UI.Xaml.Controls;
 
 namespace App1
 {
+
+
     /// <summary>
     /// An empty page that can be used on its own or navigated to within a Frame.
     /// </summary>
     public sealed partial class MainPage
     {
+
+        // Replace <SubscriptionKey> with your valid subscription key.
+        // For example, subscriptionKey = "0123456789abcdef0123456789ABCDEF"
+        private const string subscriptionKey = "7f573507036e4912a71acc101526db5d";
+
+        // Replace or verify the region.
+        //
+        // You must use the same region as you used to obtain your subscription
+        // keys. For example, if you obtained your subscription keys from the
+        // westus region, replace "Westcentralus" with "Westus".
+        //
+        // NOTE: Free trial subscription keys are generated in the westcentralus
+        // region, so if you are using a free trial subscription key, you should
+        // not need to change this region.
+        private const string faceEndpoint =
+            "https://westcentralus.api.cognitive.microsoft.com";
+
+        private readonly IFaceClient faceClient = new FaceClient(
+            new ApiKeyServiceClientCredentials(subscriptionKey),
+            new System.Net.Http.DelegatingHandler[] { });
+
+        // The list of detected faces.
+        private IList<DetectedFace> faceList;
+        // The list of descriptions for the detected faces.
+        private string[] faceDescriptions;
+        // The resize factor for the displayed image.
+        private double resizeFactor;
+
+        private const string defaultStatusBarText =
+            "Place the mouse pointer over a face to see the face description.";
+
         private static int _voiceToUse;
 
         public MainPage()
@@ -168,27 +204,64 @@ namespace App1
 
         private async void Button_Click_3(object sender, RoutedEventArgs e)
         {
-            //CameraCaptureUI captureUI = new CameraCaptureUI();
-            //captureUI.PhotoSettings.Format = CameraCaptureUIPhotoFormat.Jpeg;
-            //captureUI.PhotoSettings.CroppedSizeInPixels = new Size(200, 200);
+            CameraCaptureUI captureUI = new CameraCaptureUI();
+            captureUI.PhotoSettings.Format = CameraCaptureUIPhotoFormat.Jpeg;
+            captureUI.PhotoSettings.CroppedSizeInPixels = new Size(500, 500);
 
-            //StorageFile photo = await captureUI.CaptureFileAsync(CameraCaptureUIMode.Photo);
+            StorageFile photo = await captureUI.CaptureFileAsync(CameraCaptureUIMode.Photo);
 
-            //if (photo == null)
-            //{
-            //    // User cancelled photo capture
-            //    return;
-            //}
+            if (photo == null)
+            {
+                // User cancelled photo capture
+                return;
+            }
 
             StorageFolder destinationFolder =
                 await ApplicationData.Current.LocalFolder.CreateFolderAsync("ProfilePhotoFolder",
                     CreationCollisionOption.OpenIfExists);
 
 
-            //await photo.CopyAsync(destinationFolder, "ProfilePhoto.jpg", NameCollisionOption.ReplaceExisting);
-            //await photo.DeleteAsync();
+            await photo.CopyAsync(destinationFolder, "ProfilePhoto.jpg", NameCollisionOption.ReplaceExisting);
+            await photo.DeleteAsync();
 
-            MakeRequest(destinationFolder.Path + @"\ProfilePhoto.jpg");
+            var detetedFaces = await UploadAndDetectFaces(destinationFolder.Path + @"\ProfilePhoto.jpg");
+
+            var face = detetedFaces.FirstOrDefault();
+
+            if (face == null)
+            {
+                await SayWithTheVoice("I don't see a face", "Mark");
+            }
+            else
+            {
+                var emotion = face.FaceAttributes.Emotion;
+                if (emotion.Surprise > new List<double>{emotion.Happiness,
+                    emotion.Sadness,emotion.Anger }.Max())
+                {
+                    await SayWithTheVoice("Yikes! You look suprised!", "Mark");
+                }
+                else if(emotion.Happiness > 0.8)
+                {
+                    await SayWithTheVoice("You Look Happy Today!", "Mark");
+                }
+                else if (emotion.Sadness > 0.8)
+                {
+                    await SayWithTheVoice("You Look Sad Today!", "Mark");
+                }
+                else if (face.FaceAttributes.Gender == Gender.Female)
+                {
+                    await SayWithTheVoice($"You look about {face.FaceAttributes.Age - 10} years old", "Mark");
+                }
+                else
+                {
+                    await SayWithTheVoice($"You look about {face.FaceAttributes.Age} years old", "Mark");
+                }
+            }
+
+            await SayWithTheVoice($"You look about {face.FaceAttributes.Age} years old", "Mark");
+            await SayWithTheVoice($"And you have nice {face.FaceAttributes.Hair.HairColor[0].Color} hair", "James");
+
+            //MakeRequest(destinationFolder.Path + @"\ProfilePhoto.jpg");
 
         }
 
@@ -244,6 +317,47 @@ namespace App1
                 Console.WriteLine("\nResponse:\n");
                 //Console.WriteLine(JsonPrettyPrint(contentString));
                 Console.WriteLine("\nPress Enter to exit...");
+            }
+        }
+
+        // Uploads the image file and calls DetectWithStreamAsync.
+        private async Task<IList<DetectedFace>> UploadAndDetectFaces(string imageFilePath)
+        {
+            faceClient.Endpoint = faceEndpoint;
+
+            // The list of Face attributes to return.
+            IList<FaceAttributeType> faceAttributes =
+                new FaceAttributeType[]
+                {
+                    FaceAttributeType.Gender, FaceAttributeType.Age,
+                    FaceAttributeType.Smile, FaceAttributeType.Emotion,
+                    FaceAttributeType.Glasses, FaceAttributeType.Hair
+                };
+
+            // Call the Face API.
+            try
+            {
+                using (Stream imageFileStream = File.OpenRead(imageFilePath))
+                {
+                    // The second argument specifies to return the faceId, while
+                    // the third argument specifies not to return face landmarks.
+                    IList<DetectedFace> faceList =
+                        await faceClient.Face.DetectWithStreamAsync(
+                            imageFileStream, true, false, faceAttributes);
+                    return faceList;
+                }
+            }
+            // Catch and display Face API errors.
+            catch (APIErrorException f)
+            {
+                //MessageBox.Show(f.Message);
+                return new List<DetectedFace>();
+            }
+            // Catch and display all other errors.
+            catch (Exception e)
+            {
+                //MessageBox.Show(e.Message, "Error");
+                return new List<DetectedFace>();
             }
         }
     }
