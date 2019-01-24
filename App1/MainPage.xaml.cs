@@ -1,7 +1,14 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
+using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using Windows.Foundation;
+using Windows.Media.Capture;
 using Windows.Media.SpeechSynthesis;
+using Windows.Storage;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 
@@ -161,6 +168,83 @@ namespace App1
 
         private async void Button_Click_3(object sender, RoutedEventArgs e)
         {
+            //CameraCaptureUI captureUI = new CameraCaptureUI();
+            //captureUI.PhotoSettings.Format = CameraCaptureUIPhotoFormat.Jpeg;
+            //captureUI.PhotoSettings.CroppedSizeInPixels = new Size(200, 200);
+
+            //StorageFile photo = await captureUI.CaptureFileAsync(CameraCaptureUIMode.Photo);
+
+            //if (photo == null)
+            //{
+            //    // User cancelled photo capture
+            //    return;
+            //}
+
+            StorageFolder destinationFolder =
+                await ApplicationData.Current.LocalFolder.CreateFolderAsync("ProfilePhotoFolder",
+                    CreationCollisionOption.OpenIfExists);
+
+
+            //await photo.CopyAsync(destinationFolder, "ProfilePhoto.jpg", NameCollisionOption.ReplaceExisting);
+            //await photo.DeleteAsync();
+
+            MakeRequest(destinationFolder.Path + @"\ProfilePhoto.jpg");
+
+        }
+
+        static byte[] GetImageAsByteArray(string imageFilePath)
+        {
+            using (FileStream fileStream =
+                new FileStream(imageFilePath, FileMode.Open, FileAccess.Read))
+            {
+                BinaryReader binaryReader = new BinaryReader(fileStream);
+                return binaryReader.ReadBytes((int)fileStream.Length);
+            }
+        }
+
+        const string uriBase =
+            "https://westcentralus.api.cognitive.microsoft.com/face/v1.0/detect";
+
+        static async void MakeRequest(string imageFilePath)
+        {
+            HttpClient client = new HttpClient();
+
+            // Request headers.
+            client.DefaultRequestHeaders.Add(
+                "Ocp-Apim-Subscription-Key", "7f573507036e4912a71acc101526db5d");
+
+            // Request parameters. A third optional parameter is "details".
+            string requestParameters = "returnFaceId=true&returnFaceLandmarks=false" +
+                                       "&returnFaceAttributes=age,gender,headPose,smile,facialHair,glasses," +
+                                       "emotion,hair,makeup,occlusion,accessories,blur,exposure,noise";
+
+            // Assemble the URI for the REST API Call.
+            string uri = uriBase + "?" + requestParameters;
+
+            HttpResponseMessage response;
+
+            // Request body. Posts a locally stored JPEG image.
+            byte[] byteData = GetImageAsByteArray(imageFilePath);
+
+            using (ByteArrayContent content = new ByteArrayContent(byteData))
+            {
+                // This example uses content type "application/octet-stream".
+                // The other content types you can use are "application/json"
+                // and "multipart/form-data".
+                content.Headers.ContentType =
+                    new MediaTypeHeaderValue("application/octet-stream");
+
+                // Execute the REST API call.
+                response = await client.PostAsync(uri, content);
+
+                // Get the JSON response.
+                string contentString = await response.Content.ReadAsStringAsync();
+
+                // Display the JSON response.
+                Console.WriteLine("\nResponse:\n");
+                //Console.WriteLine(JsonPrettyPrint(contentString));
+                Console.WriteLine("\nPress Enter to exit...");
+            }
         }
     }
 }
